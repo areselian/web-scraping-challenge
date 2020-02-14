@@ -7,392 +7,137 @@
 # Dependencies
 
 from splinter import Browser
-from bs4 import BeautifulSoup as bs
-import requests
-import os
-import pandas as pd
-from pprint import pprint
-import pymongo
-from flask import Flask, render_template
-import time
-import numpy as np
-import json
-from selenium import webdriver
+from bs4 import BeautifulSoup
 
-# In[6]:
+def init_browser():
+    executable_path = {'executable_path': '/usr/local/bin/chromedriver'}
+    return Browser("chrome", **executable_path, headless = False)
 
+def scrape():
+    browser = init_browser()
+    mars_collection = {}
 
-# https://splinter.readthedocs.io/en/latest/drivers/chrome.html
-get_ipython().system('which chromedriver')
+    # Mars News 
+    url = 'https://mars.nasa.gov/news/'
+    browser.visit(url)
+    time.sleep(2)
 
+    html = browser.html
+    news_soup = BeautifulSoup(html, 'html.parser')
 
-# In[7]:
 
+    mars_collection["news_title"] = soup.find('div', class_= 'content_title').get_text()
+    mars_collection["news_snip"] = soup.find_all('div', class_="rollover_description_inner").get_text()
 
+    # Mars Feature Image
 
-executable_path = {'executable_path': '/usr/local/bin/chromedriver'}
-browser = Browser("chrome", **executable_path, headless = False)
+    url_feature_image = "https://www.jpl.nasa.gov/spaceimages/?search=&category=Mars"
+    browser.visit(url_feature_image)
+    response = browser.html
+    soup2 = BeautifulSoup(response, 'html.parser')
 
+    img_src = []
 
-# In[8]:
+    for image in images:
+        img = image['data-fancybox-href']
+        img_src.append(img)
 
+    mars_collection["featrued_image_url"] = "https://www.jpl.nasa.gov" + img_src[2]
 
-#Scrape the NASA Mars News Site and collect the latest News Title and Paragraph Text.
-#Assign the text to variables that you can reference later.
-
-# news_title = "NASA's Treasure Map for Water Ice on Mars"
-# news_p = "A new study identifies frozen water just below the Martian surface, where astronauts could easily dig it up."
-
-url = 'https://mars.nasa.gov/news/'
-browser.visit(url)
-
-
-# In[9]:
-
-
-#Scrape Page Into Soup
-
-html = browser.html
-soup = bs(html, 'html.parser')
-
-
-# In[10]:
-
-
-
-# print(soup.prettify())
-
-
-# # NASA Mars News
-
-# In[11]:
-
-
-#scrape the headlines and get rid of white spaces
-news_titles = soup.find_all('div', class_= 'content_title')
-print(news_titles)
-
-
-# In[12]:
-
-
-#scrape body from the website
-body = soup.find_all('div', class_="rollover_description")
-print(body)
-
-
-# In[13]:
-
-
-#Save all the articles from the page
-results = soup.find_all('div', class_="slide")
-for result in results:
-    news_titles = result.find('div', class_="content_title")
-    news_title = news_titles.find('a').text
-    news_bodies = result.find('div', class_="rollover_description")
-    news_body = news_bodies.find('div', class_="rollover_description_inner").text
-    print('-------------')
-    print(news_title)
-    print(news_body)
-
-
-# # JPL Mars Space Images - Featured Image
-
-# In[14]:
-
-
-url = 'https://www.jpl.nasa.gov/spaceimages/?search=&category=Mars'
-response = requests.get(url)
-soup = bs(response.text, 'html.parser')
-
-
-# In[15]:
-
-
-# print(soup.prettify())
-
-
-# In[16]:
-
-
-#pull images from website
-images = soup.find_all('a', class_="fancybox")
-
-
-# In[17]:
-
-
-#pull image link
-
-img_src = []
-
-for image in images:
-    img = image['data-fancybox-href']
-    img_src.append(img)
-
-img_url = "https://www.jpl.nasa.gov" + img
-img_url
-
-
-# # Mars Weather
-
-# In[18]:
-
-
-url = 'https://twitter.com/marswxreport?lang=en'
-response = requests.get(url)
-soup = bs(response.text, 'html.parser')
-
-
-# In[19]:
-
-
-# print(soup.prettify())
-
-
-# In[20]:
-
-
-contents = soup.find_all("div", class_="content")
-
-
-# In[21]:
-
-
-weather_mars = []
-for content in contents:
-    tweet = content.find('div', class_= "js-tweet-text-container").text
-    weather_mars.append(tweet)
+    # Mars Weather
     
-print(weather_mars)
-
-
-# In[22]:
-
-
-mars_weather = weather_mars[8]
-print(mars_weather)
-
-
-# # Mars Facts
-
-# In[23]:
-
-
-mars_facts_url = 'https://space-facts.com/mars/'
-table = pd.read_html(mars_facts_url)
-table[0]
-
-
-# In[24]:
-
-
-df = table[0]
-df.columns = ["Facts", "Value"]
-df.set_index(["Facts"])
-df
-
-
-# In[25]:
-
-
-facts_html = df.to_html()
-facts_html = facts_html.replace("\n","")
-facts_html
-
-
-# # Mars Hemispheres
-
-# In[26]:
-
-
-hemisphere_img_urls = []
-
-
-# In[35]:
-
-
-#Cerberus Hemispheres
-
-url = ('https://astrogeology.usgs.gov/search/map/Mars/Viking/cerberus_enhanced')
-
-
-
-
-
-# In[36]:
-
-
-response = requests.get(url)
-soup = bs(response.text, 'html.parser')
-
-
-# In[37]:
-
-
-#print(soup.prettify())
-
-
-# In[38]:
-
-
-cerberus_img = soup.find_all('div', class_='wide-image-wrapper')
-print(cerberus_img)
-
-
-# In[40]:
-
-
-for img in cerberus_img:
-    pic = img.find('li')
-    full_img = pic.find('a')['href']
-    print(full_img)
-
-
-# In[41]:
-
-
-cerberus_title = soup.find('h2', class_='title').text
-print(cerberus_title)
-
-
-# In[42]:
-
-
-cerberus_hem = {"Title": cerberus_title, "url": full_img}
-print(cerberus_hem)
-
-
-# In[43]:
-
-
-#Schiaparelli Hemisphere
-url = ('https://astrogeology.usgs.gov/search/map/Mars/Viking/schiaparelli_enhanced')
-
-
-# In[44]:
-
-
-response = requests.get(url)
-soup = bs(response.text, 'html.parser')
-
-
-# In[45]:
-
-
-schiaparelli_img = soup.find_all('div', class_="wide-image-wrapper")
-print(schiaparelli_img)
-
-
-# In[46]:
-
-
-for img in schiaparelli_img:
-    pic = img.find('li')
-    full_img = pic.find('a')['href']
-    print(full_img)
-
-
-# In[48]:
-
-
-schiaparelli_title = soup.find('h2', class_="title").text
-print(schiaparelli_title)
-
-
-# In[49]:
-
-
-schiaparelli_hem = {"Title": schiaparelli_title, "url": full_img}
-print(schiaparelli_hem)
-
-
-# In[50]:
-
-
-#Syrtis Hemisphere
-url = ('https://astrogeology.usgs.gov/search/map/Mars/Viking/syrtis_major_enhanced')
-
-
-# In[51]:
-
-
-response = requests.get(url)
-soup = bs(response.text, 'html.parser')
-
-
-# In[55]:
-
-
-syrtris_img = soup.find_all('div', class_="wide-image-wrapper")
-print(syrtris_img)
-
-
-# In[56]:
-
-
-for img in syrtris_img:
-    pic= img.find('li')
-    full_img = pic.find('a')['href']
-    print(full_img)
-
-
-# In[57]:
-
-
-syrtris_title = soup.find('h2', class_='title').text
-print(syrtris_title)
-
-
-# In[58]:
-
-
-syrtris_hem = {"Title": syrtris_title, "url": full_img}
-print(syrtris_hem)
-
-
-# In[60]:
-
-
-#Valles Marineris Hemisphere
-url = ('https://astrogeology.usgs.gov/search/map/Mars/Viking/valles_marineris_enhanced')
-
-response = requests.get(url)
-soup = bs(response.text, 'html.parser')
-
-
-# In[61]:
-
-
-valles_marineris_img = soup.find_all('div', class_="wide-image-wrapper")
-print(valles_marineris_img)
-
-
-# In[62]:
-
-
-for img in valles_marineris_img:
-    pic= img.find('li')
-    full_img = pic.find('a')['href']
-    print(full_img)
-
-
-# In[63]:
-
-
-valles_marineris_title = soup.find('h2', class_='title').text
-print(valles_marineris_title)
-
-
-# In[64]:
-
-
-valles_marineris_hem = {"Title": valles_marineris_title, "url": full_img}
-print(valles_marineris_hem)
-
-
-# In[ ]:
-
-
-
-
+    url_weather = ('https://twitter.com/marswxreport?lang=en')
+    browser.visit(url_weather)
+    response = browser.html
+    soup3 = BeautifulSoup(response, 'html.parser')
+    weather = soup3.find_all("div",class_="js-tweet-text-container")
+    weather_mars = []
+    
+    for content in weather:
+        tweet = content.find("p", class_="TweetTextSize TweetTextSize--normal js-tweet-text tweet-text").text
+        weather_mars.append(tweet)
+    mars_collection["mars_weather"] = weather_mars[8]
+
+
+    # Mars Facts
+
+    url_facts = "https://space-facts.com/mars/"
+    df_facts = pd.read_html(url_facts)[0]
+    df_facts.columns = ["Facts","Values"]
+    clean_table = df_facts.set_index(["Facts"])
+    mars_table = clean_table.to_html()
+    mars_table = mars_table.replace("\n", "")
+    mars_collection["fact_table"] = mars_table
+
+    # Mars Hemisphere 
+
+    hemisphere_image_urls = []
+
+    # Cerberus Hemisphere
+
+    url_cerberus = "https://astrogeology.usgs.gov/search/map/Mars/Viking/cerberus_enhanced"
+    browser.visit(url_cerberus)
+    response_cerberus = browser.html
+    soup4 = BeautifulSoup(response_cerberus, 'html.parser')
+    cerberus_img = soup4.find_all('div', class_="wide-image-wrapper")
+
+    for img in cerberus_img:
+        pic_cerberus = img.find('li')
+        cerberus_full_img = pic_cerberus.find('a')['href']
+    cerberus_title = soup4.find('h2', class_='title').get_text()
+    cerberus_hem = {"Title": cerberus_title, "url": cerberus_full_img}
+
+    hemisphere_image_urls.append(cerberus_hem)
+
+    # Schiaparelli Hemisphere 
+
+    url_schiaparelli = "https://astrogeology.usgs.gov/search/map/Mars/Viking/schiaparelli_enhanced"
+    browser.visit(url_cerberus)
+    response_schiaparelli = browser.html
+    soup5 = BeautifulSoup(response_schiaparelli, 'html.parser')
+    schiaparelli_img = soup5.find_all('div', class_="wide-image-wrapper")
+
+    for img in schiaparelli_img:
+        pic_schiaparelli = img.find('li')
+        schiaparelli_full_img = pic_schiaparelli.find('a')['href']
+    schiaparelli_title = soup5.find('h2', class_='title').get_text()
+    schiaparelli_hem = {"Title": schiaparelli_title, "url": schiaparelli_full_img}
+    
+    hemisphere_image_urls.append(schiaparelli_hem)
+
+    # Syrtis Hemisphere
+
+    url_syrtis = ('https://astrogeology.usgs.gov/search/map/Mars/Viking/syrtis_major_enhanced')
+    browser.visit(url_syrtis)
+    response_syrtis = browser.html
+    soup6 = BeautifulSoup(response_syrtis, 'html.parser')
+    syrtris_img = soup6.find_all('div', class_="wide-image-wrapper")
+
+    for img in syrtris_img:
+        pic_syrtris = img.find('li')
+        syrtris_full_img = pic_syrtris.find('a')['href']
+    syrtris_title = soup6.find('h2', class_='title').get_text()
+    syrtris_hem = {"Title": syrtris_title, "url": syrtris_full_img}
+
+    hemisphere_image_urls.append(syrtris_hem)
+
+     # Valles Marineris Hemisphere
+
+    url_valles = ('https://astrogeology.usgs.gov/search/map/Mars/Viking/valles_marineris_enhanced')
+    browser.visit(url_valles)
+    response_valles = browser.html
+    soup7 = BeautifulSoup(response_valles, 'html.parser')
+    valles_img = soup7.find_all('div', class_="wide-image-wrapper")
+
+    for img in valles_img:
+        pic_valles = img.find('li')
+        valles_full_img = pic_valles.find('a')['href']
+    valles_title = soup7.find('h2', class_='title').get_text()
+    valles_hem = {"Title": valles_title, "url": valles_full_img}
+    
+    hemisphere_image_urls.append(valles_hem)
+
+    ## Collection of information
+    mars_collection["hemisphere_image"] = hemisphere_image_urls
+
+    return mars_collection
